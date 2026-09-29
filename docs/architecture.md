@@ -2,97 +2,90 @@
 
 ## Overview
 
-KeyLogger is a three-tier application: a React single-page app, a FastAPI
-backend, and a PostgreSQL database. It demonstrates a complete **defensive**
-workflow around keylogging — from behavioral capture of the user's own typing,
-through synthetic threat simulation, to rule-based detection, transparent risk
-scoring, and a SOC-style dashboard.
+The Linux Keylogging Defense Lab is a **single-host, CLI-first Python
+framework**. It runs entirely inside one isolated VMware Linux VM — there is no
+server, no browser, and no network service. Data flows through a pipeline of
+modules, each with a single responsibility, coordinated by a CLI.
 
 ```
-┌──────────────────────────────┐        ┌──────────────────────────────┐
-│          Frontend            │  REST  │           Backend            │
-│  React + Vite + Tailwind     │◀──────▶│  FastAPI + SQLAlchemy        │
-│                              │  WS    │                              │
-│  • Auth (JWT in localStorage)│◀──────▶│  • Auth / JWT / bcrypt       │
-│  • Virtual Keylogger Lab     │        │  • Keystroke ingest+analytics│
-│  • Analytics (Recharts)      │        │  • Synthetic simulation      │
-│  • Threat Simulation         │        │  • Detection engine          │
-│  • Detection & Risk          │        │  • Risk scoring              │
-│  • SOC Dashboard (live WS)   │        │  • Dashboard aggregation     │
-└──────────────────────────────┘        └───────────────┬──────────────┘
-                                                         │ SQLAlchemy
-                                                         ▼
-                                              ┌────────────────────┐
-                                              │    PostgreSQL 16   │
-                                              │  (Alembic-managed) │
-                                              └────────────────────┘
+                         python main.py <command>
+                                   │
+                          ┌────────▼────────┐
+                          │   CLI (cli.py)  │  argparse dispatch
+                          └────────┬────────┘
+                                   │  LabContext (paths + config + mode)
+        ┌──────────────┬──────────┼───────────┬───────────────┐
+        ▼              ▼          ▼           ▼               ▼
+   Module 1        Module 2   Module 3    Module 4        Module 9
+  Environment     Synthetic   Behavior    Detection        Report
+  (read-only)     Telemetry   Monitor     Engine (KL-*)   Generator
+        │              │          │           │               ▲
+        │              └────┬─────┘           ▼               │
+        │                   ▼            Module 5 (Risk)      │
+        │            Module 7 (SQLite storage) ◀──────────────┤
+        │                   │                                 │
+        │                   ▼                                 │
+        │            Module 8 (Analysis, CSV/JSON) ───────────┘
+        │                   │
+        └───────────────────┴──► Module 6 (Terminal Dashboard)
 ```
 
-## Backend layers
+## Design principles
+
+- **CLI-first**: every capability is reachable through `main.py`. A terminal
+  dashboard (Module 6) is an optional view, not the primary interface.
+- **Modular**: each module is an independent Python module under `src/klab/`
+  with clear inputs/outputs, so it can be unit-tested in isolation.
+- **Synthetic & read-only**: the only "real" system interaction is *read-only*
+  observation of `/proc` metadata. All threat behaviour is generated data.
+- **Transparent**: detection rules and risk scoring are explicit and explainable
+  (no black-box logic).
+- **Reproducible**: configuration and outputs live under a single workspace
+  directory (`data/` by default) so experiments can be re-run and inspected.
+
+## Component responsibilities
+
+| Module | File (planned)          | Responsibility                                   |
+|--------|-------------------------|--------------------------------------------------|
+| CLI    | `cli.py`, `commands.py` | Parse args, build context, dispatch commands     |
+| Config | `config.py`             | Paths, experiment modes, thresholds, config I/O  |
+| 1      | `environment.py`        | Read-only Linux environment + process snapshot   |
+| 2      | `telemetry.py`          | Generate synthetic keystroke telemetry           |
+| 3      | `monitor.py`            | Read-only process/behaviour observation          |
+| 4      | `detection.py`          | Rule engine (KL-001 … KL-006)                    |
+| 5      | `risk.py`               | Transparent additive risk scoring                |
+| 6      | `dashboard.py`          | Terminal SOC-style dashboard                      |
+| 7      | `storage.py`            | SQLite persistence (events, detections, …)       |
+| 8      | `analysis.py`           | Frequency/burst/interval analysis, CSV/JSON       |
+| 9      | `report.py`             | PDF experiment report                            |
+| 10     | `modes.py` / config     | NORMAL / SUSPICIOUS / HIGH_RISK experiment modes  |
+
+## Workspace layout (runtime)
+
+Created by `python main.py setup` (default base `./data`, override with
+`--home` or `$KLAB_HOME`):
 
 ```
-backend/app/
-├── main.py            # FastAPI app assembly, CORS, lifespan seeding
-├── core/
-│   ├── config.py      # Pydantic settings (env-driven, no hard-coded secrets)
-│   ├── database.py    # Engine, SessionLocal, declarative Base, get_db
-│   └── security.py    # bcrypt hashing + JWT create/decode
-├── models/            # SQLAlchemy ORM models (7 tables) + enums
-├── schemas/           # Pydantic request/response models
-├── services/          # Business logic (pure, testable)
-│   ├── analytics.py   # Keystroke statistics
-│   ├── simulation.py  # Synthetic telemetry generation
-│   ├── detection.py   # Rule engine + risk scoring
-│   └── audit.py       # Audit logging helper
-├── api/
-│   ├── deps.py        # get_current_user, session ownership guard
-│   ├── router.py      # Aggregates all routers under /api
-│   └── routes/        # auth, sessions, keystrokes, simulation,
-│                      # detection, dashboard, health
-└── utils/seed.py      # Seeds the detection-rule catalog
+data/
+├── config.json      # inspectable lab configuration
+├── klab.sqlite3     # SQLite database (created by the storage module)
+├── logs/            # rotating detailed logs
+├── datasets/        # exported CSV/JSON experiment datasets
+└── reports/         # generated PDF reports
 ```
 
-**Design principle:** business logic lives in `services/` as pure functions
-that operate on ORM objects or plain data, so it can be unit-tested without a
-web server or database. Routes are thin — they handle auth, validation, and
-persistence, then delegate.
+## Data model (planned — Module 7)
 
-## Data model
+SQLite tables, designed to be easy to inspect with the `sqlite3` CLI:
 
-| Table                   | Purpose                                                   |
-|-------------------------|-----------------------------------------------------------|
-| `users`                 | Accounts; bcrypt password hash                            |
-| `sessions`              | A user-initiated test/analysis run                        |
-| `keystroke_test_events` | Per-keystroke **metadata** (category, timing) — no chars  |
-| `simulation_events`     | **Synthetic** telemetry for a hypothetical process        |
-| `detection_results`     | Output of a detection run (score, level, breakdown)       |
-| `detection_rules`       | Seeded catalog of rules and weights                       |
-| `audit_logs`            | Security-relevant user actions                            |
+- `test_sessions` — one experiment run (mode, timestamps)
+- `events` — synthetic keystroke telemetry events
+- `process_observations` — read-only process metadata snapshots
+- `detections` — fired detection rules with evidence
+- `risk_scores` — per-session score, level, and breakdown
 
-Relationships: a `User` has many `Session`s; each `Session` has many
-`keystroke_test_events`, `simulation_events`, and `detection_results`. All
-child rows cascade-delete with their session.
+## Current status
 
-## Request lifecycle (example: detection)
-
-1. Client `POST /api/detection/analyze` with a JWT and `session_id`.
-2. `get_current_user` decodes the JWT and loads the active user.
-3. The route confirms the session belongs to that user (404 otherwise).
-4. It loads the session's `simulation_events`.
-5. `services.detection.analyze()` aggregates indicators, fires matching rules,
-   and computes a transparent score.
-6. A `DetectionResult` is persisted; an `AuditLog` entry is recorded.
-7. The result (score, level, per-rule breakdown) is returned.
-
-## Real-time dashboard
-
-The SOC dashboard first loads a summary over REST, then opens a WebSocket
-(`/api/dashboard/ws?token=<JWT>`) that pushes a fresh summary every ~5s. If the
-socket fails, the client transparently falls back to REST polling.
-
-## Risk-scoring model
-
-Scoring is additive and fully transparent (see [threat-model.md](threat-model.md)):
-each fired rule contributes a fixed weight; the sum (clamped 0–100) maps to a
-band (LOW/MEDIUM/HIGH/CRITICAL). The API returns the exact per-rule
-contribution so the score is never a black box.
+Phase 1 implements the CLI foundation, configuration, logging, and **Module 1**
+(`environment.py`) with the `setup` and `status` commands. Remaining modules are
+scaffolded in the CLI and delivered in subsequent phases.

@@ -1,0 +1,21 @@
+# ---------------------------------------------------------------------------
+# Linux Keylogging Defense Lab — Python dependencies
+#
+# The core framework (Phase 1: CLI + Module 1) runs on the Python 3 standard
+# library alone. The packages below are used by later modules and are listed
+# now so the VM can be provisioned once.
+# ---------------------------------------------------------------------------
+
+# Module 3 — Linux process/behaviour monitor (read-only). Optional at runtime:
+# the monitor falls back to reading /proc directly if psutil is unavailable.
+psutil==6.1.0
+
+# Module 6 — richer terminal dashboard (optional; plain-text fallback exists).
+rich==13.9.4
+
+# Module 9 — PDF report generation.
+fpdf2==2.8.2
+
+# ---- Development / testing ----
+pytest==8.3.4
+ruff==0.8.4

@@ -1,4 +1,4 @@
-# ---- Python / Backend ----
+# ---- Python ----
 __pycache__/
 *.py[cod]
 *$py.class
@@ -18,19 +18,12 @@ htmlcov/
 dist/
 build/
 
-# ---- Node / Frontend ----
-node_modules/
-frontend/dist/
-frontend/build/
-.vite/
-*.local
-
-# ---- Environment / Secrets ----
-.env
-.env.*
-!.env.example
-*.pem
-*.key
+# ---- Lab runtime data (generated; not committed) ----
+data/
+!samples/            # sample datasets ARE committed
+*.sqlite3
+*.db
+*.log
 
 # ---- Editors / OS ----
 .vscode/
@@ -38,9 +31,3 @@ frontend/build/
 .DS_Store
 Thumbs.db
 *.swp
-
-# ---- Logs / DB ----
-*.log
-*.sqlite3
-*.db
-pgdata/

@@ -1,0 +1,18 @@
+[project]
+name = "klab"
+version = "1.0.0"
+description = "Linux Keylogging Simulation, Detection and Behavioral Analysis Framework"
+requires-python = ">=3.9"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q"
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
