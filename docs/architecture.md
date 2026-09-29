@@ -86,6 +86,7 @@ SQLite tables, designed to be easy to inspect with the `sqlite3` CLI:
 
 ## Current status
 
-Phase 1 implements the CLI foundation, configuration, logging, and **Module 1**
-(`environment.py`) with the `setup` and `status` commands. Remaining modules are
-scaffolded in the CLI and delivered in subsequent phases.
+All ten modules are implemented and covered by tests. The CLI exposes the full
+pipeline through `setup`, `status`, `test`, `analyze`, and `report`. Experiment
+outcomes are deterministic for a fixed seed (see `docs/methodology.md` and
+`samples/expected_mode_outcomes.json`).

@@ -38,9 +38,24 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("setup", help="Initialize the lab workspace and show the environment.")
     sub.add_parser("status", help="Show environment, configuration, and lab state.")
-    sub.add_parser("test", help="Run an experiment (synthetic telemetry + detection).")
-    sub.add_parser("analyze", help="Analyze telemetry/detections and export datasets.")
-    sub.add_parser("report", help="Generate a professional PDF report.")
+
+    p_test = sub.add_parser("test", help="Run an experiment (synthetic telemetry + detection).")
+    p_test.add_argument("--count", type=int, default=None,
+                        help="Number of synthetic events to generate (default: config batch).")
+    p_test.add_argument("--seed", type=int, default=None,
+                        help="Seed for reproducible telemetry.")
+    p_test.add_argument("--no-monitor", action="store_true",
+                        help="Skip read-only process observation.")
+
+    p_analyze = sub.add_parser("analyze", help="Analyze telemetry/detections and export datasets.")
+    p_analyze.add_argument("--session", type=int, default=None,
+                           help="Session id to analyze (default: latest).")
+    p_analyze.add_argument("--no-export", action="store_true",
+                           help="Print analysis without writing dataset files.")
+
+    p_report = sub.add_parser("report", help="Generate a professional PDF report.")
+    p_report.add_argument("--session", type=int, default=None,
+                          help="Session id to report on (default: latest).")
     return parser
 
 

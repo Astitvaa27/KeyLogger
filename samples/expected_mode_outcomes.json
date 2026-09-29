@@ -1,0 +1,44 @@
+{
+  "NORMAL_MODE": {
+    "events": 50,
+    "detections": [],
+    "risk_score": 0,
+    "risk_level": "LOW",
+    "breakdown": {}
+  },
+  "SUSPICIOUS_MODE": {
+    "events": 50,
+    "detections": [
+      "KL-002",
+      "KL-003",
+      "KL-004"
+    ],
+    "risk_score": 60,
+    "risk_level": "HIGH",
+    "breakdown": {
+      "network": 25,
+      "persistence": 25,
+      "suspicious_process_behavior": 10
+    }
+  },
+  "HIGH_RISK_MODE": {
+    "events": 50,
+    "detections": [
+      "KL-001",
+      "KL-002",
+      "KL-003",
+      "KL-004",
+      "KL-005",
+      "KL-006"
+    ],
+    "risk_score": 100,
+    "risk_level": "CRITICAL",
+    "breakdown": {
+      "keyboard_monitoring": 25,
+      "network": 25,
+      "persistence": 25,
+      "abnormal_event_volume": 15,
+      "suspicious_process_behavior": 10
+    }
+  }
+}

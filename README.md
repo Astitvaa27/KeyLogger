@@ -9,20 +9,20 @@ Ubuntu). It demonstrates the full defensive workflow around keylogging using
 
 ```
 Linux VM
-   ├── Test Environment            (Module 1)  ✅ implemented
-   ├── Synthetic Keylogger Telemetry (Module 2)  ⏳ planned
-   ├── Process/Behavior Monitor    (Module 3)  ⏳ planned
-   ├── Detection Engine            (Module 4)  ⏳ planned
-   ├── Risk Scoring                (Module 5)  ⏳ planned
-   ├── Event Logger / Storage      (Module 7)  ⏳ planned
-   ├── Analysis + Datasets         (Module 8)  ⏳ planned
-   ├── CLI / Terminal Dashboard    (Module 6)  ⏳ planned
-   └── Report Generator            (Module 9)  ⏳ planned
+   ├── Test Environment              (Module 1)   ✅
+   ├── Synthetic Keylogger Telemetry (Module 2)   ✅
+   ├── Process/Behavior Monitor      (Module 3)   ✅
+   ├── Detection Engine              (Module 4)   ✅
+   ├── Risk Scoring                  (Module 5)   ✅
+   ├── Terminal Dashboard            (Module 6)   ✅
+   ├── Event Logger / Storage        (Module 7)   ✅
+   ├── Analysis + Datasets           (Module 8)   ✅
+   ├── Report Generator              (Module 9)   ✅
+   └── Experiment Modes              (Module 10)  ✅
 ```
 
-> **Build status:** Phase 1 complete — project foundation + Module 1
-> (Test Environment). `setup` and `status` are fully functional; `test`,
-> `analyze`, and `report` are wired into the CLI and land in later phases.
+> **Build status:** all 10 modules implemented. `setup`, `status`, `test`,
+> `analyze`, and `report` are fully functional. 40 unit tests, ruff clean.
 
 ---
 
@@ -65,16 +65,28 @@ python main.py status
 
 ## Commands
 
-| Command                 | Purpose                                                 | Status |
-|-------------------------|---------------------------------------------------------|--------|
-| `python main.py setup`  | Initialize workspace, write config, show environment    | ✅     |
-| `python main.py status` | Show Linux environment, config, and lab state           | ✅     |
-| `python main.py test`   | Run an experiment (synthetic telemetry + detection)     | ⏳     |
-| `python main.py analyze`| Analyze telemetry/detections; export CSV/JSON datasets  | ⏳     |
-| `python main.py report` | Generate a professional PDF report                      | ⏳     |
+| Command                 | Purpose                                                 |
+|-------------------------|---------------------------------------------------------|
+| `python main.py setup`  | Initialize workspace, write config, init DB, show env   |
+| `python main.py status` | Show Linux environment, config, and lab state           |
+| `python main.py test`   | Run an experiment (telemetry → monitor → detect → score)|
+| `python main.py analyze`| Analyze telemetry/detections; export CSV/JSON datasets  |
+| `python main.py report` | Generate a professional PDF report                      |
 
 Global options: `--home DIR` (workspace location), `--mode {NORMAL,SUSPICIOUS,HIGH_RISK}`,
 `--log-level LEVEL`, `--version`.
+
+`test` options: `--count N`, `--seed N` (reproducible), `--no-monitor`.
+`analyze` / `report` options: `--session ID` (default: latest).
+
+### Example
+
+```bash
+python main.py setup
+python main.py --mode HIGH_RISK test --count 60 --seed 1
+python main.py analyze      # exports datasets to data/datasets/
+python main.py report       # writes a PDF to data/reports/
+```
 
 ## Project layout
 
@@ -88,10 +100,19 @@ KeyLogger/
 │   ├── commands.py         # command handlers
 │   ├── config.py           # config, paths, experiment modes
 │   ├── environment.py      # Module 1 — read-only environment inspection
+│   ├── telemetry.py        # Module 2 — synthetic keystroke telemetry
+│   ├── monitor.py          # Module 3 — read-only process/behaviour monitor
+│   ├── detection.py        # Module 4 — KL-001…KL-006 detection engine
+│   ├── risk.py             # Module 5 — transparent risk scoring
+│   ├── dashboard.py        # Module 6 — terminal SOC dashboard
+│   ├── storage.py          # Module 7 — SQLite persistence
+│   ├── analysis.py         # Module 8 — analysis + CSV/JSON export
+│   ├── report.py           # Module 9 — PDF report generation
+│   ├── modes.py            # Module 10 — experiment mode profiles
 │   ├── logging_setup.py    # detailed logging (console + rotating file)
 │   └── ui.py               # terminal output helpers
-├── tests/                  # pytest suite
-├── docs/                   # architecture, threat model, screenshots
+├── tests/                  # pytest suite (40 tests)
+├── docs/                   # architecture, threat model, methodology, screenshots
 ├── samples/                # sample datasets (committed)
 └── data/                   # lab runtime output (git-ignored)
 ```
@@ -118,6 +139,7 @@ ruff check src tests
 
 - [`docs/architecture.md`](docs/architecture.md) — architecture & data flow
 - [`docs/threat-model.md`](docs/threat-model.md) — safety boundaries & threat model
+- [`docs/methodology.md`](docs/methodology.md) — running reproducible experiments
 
 ## Note on project history
 
